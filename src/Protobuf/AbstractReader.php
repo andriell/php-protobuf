@@ -35,6 +35,18 @@ abstract class AbstractReader implements ReaderInterface
         return $result;
     }
 
+    public static function zigZagDecode32($uint32)
+    {
+        // Fill high 32 bits.
+        if (PHP_INT_SIZE === 8) {
+            $uint32 |= ($uint32 & 0xFFFFFFFF);
+        }
+
+        $int32 = (($uint32 >> 1) & 0x7FFFFFFF) ^ (-($uint32 & 1));
+
+        return $int32;
+    }
+
     /**
      * Read next LittleEndian32 data
      * @return string
@@ -160,5 +172,91 @@ abstract class AbstractReader implements ReaderInterface
         }
 
         return $var;
+    }
+
+    public function readInt64()
+    {
+        $var = $this->readVarint64();
+        if ($var === false) {
+            return false;
+        }
+        if (PHP_INT_SIZE == 4 && bccomp($var, "9223372036854775807") > 0) {
+            $var = bcsub($var, "18446744073709551616");
+        }
+        return $var;
+    }
+
+    public function readDouble()
+    {
+        $data = $this->readRaw(8);
+        if ($data === false) {
+            return false;
+        }
+
+        $value = unpack('d', $data);
+        return $value[1];
+    }
+
+    public function readFloat()
+    {
+        $data = $this->readRaw(4);
+        if ($data === false) {
+            return false;
+        }
+        $value = unpack('f', $data);
+        return $value[1];
+    }
+
+    public function readBool()
+    {
+        $var = $this->readVarint64();
+
+        if ($var === false) {
+            return false;
+        }
+        return (bool) $var;
+    }
+
+    public function readSfixed32()
+    {
+        $var = $this->readLittleEndian32();
+        if ($var === false) {
+            return false;
+        }
+
+        if (PHP_INT_SIZE === 8) {
+            $var |= (-($var >> 31) << 32);
+        }
+        return $var;
+    }
+
+    public function readSfixed64()
+    {
+        $var = $this->readLittleEndian32();
+        if ($var === false) {
+            return false;
+        }
+        if (PHP_INT_SIZE == 4 && bccomp($var, "9223372036854775807") > 0) {
+            $var = bcsub($var, "18446744073709551616");
+        }
+        return $var;
+    }
+
+    public function readSint32()
+    {
+        $var = $this->readVarint32();
+        if ($var === false) {
+            return false;
+        }
+        return self::zigZagDecode32($var);
+    }
+
+    public function readSint64()
+    {
+        $var = $this->readVarint64();
+        if ($var === false) {
+            return false;
+        }
+        return self::zigZagDecode32($var);
     }
 }

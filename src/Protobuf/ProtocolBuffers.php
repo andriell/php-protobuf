@@ -76,4 +76,83 @@ class ProtocolBuffers
         return $r;
     }
 
+    /**
+     * @param array $map
+     * @return array
+     * @throws \Exception
+     */
+    public function parsePacked($map = array())
+    {
+        $map = is_array($map) ? $map : array();
+        $r = array();
+        while ($bite = $this->reader->readVarint32()) {
+            $number = self::getTagFieldNumber($bite);
+            $tag = self::getTagWireType($bite);
+            switch ($tag) {
+                case GPBType::DOUBLE:
+                    $r[$number][] = $this->reader->readDouble();
+                    break;
+                case GPBType::FLOAT:
+                    $r[$number][] = $this->reader->readFloat();
+
+                    break;
+                case GPBType::INT64:
+                    $r[$number][] = $this->reader->readInt64();
+                    break;
+                case GPBType::UINT64:
+                    $r[$number][] = $this->reader->readInt64();
+                    break;
+                case GPBType::INT32:
+                    $r[$number][] = $this->reader->readVarint32();
+                    break;
+                case GPBType::FIXED64:
+                    $r[$number][] = $this->reader->readLittleEndian64();
+                    break;
+                case GPBType::FIXED32:
+                    $r[$number][] = $this->reader->readLittleEndian32();
+                    break;
+                case GPBType::BOOL:
+                    $r[$number][] = $this->reader->readBool();
+                    break;
+                case GPBType::STRING:
+                    $l = $this->reader->readVarint32();
+                    $r[$number][] = $this->reader->readRaw($l);
+                    break;
+                case GPBType::GROUP:
+                    trigger_error("Not implemented.", E_ERROR);
+                    break;
+                case GPBType::MESSAGE:
+                    $l = $this->reader->readVarint32();
+                    $r[$number][] = $this->reader->readRaw($l);
+                    break;
+                case GPBType::BYTES:
+                    $l = $this->reader->readVarint32();
+                    $r[$number][] = $this->reader->readRaw($l);
+                    break;
+                case GPBType::UINT32:
+                    $r[$number][] = $this->reader->readVarint32();
+                    break;
+                case GPBType::ENUM:
+                    $r[$number][] = $this->reader->readVarint32();
+                    break;
+                case GPBType::SFIXED32:
+                    $r[$number][] = $this->reader->readSfixed32();
+                    break;
+                case GPBType::SFIXED64:
+                    $r[$number][] = $this->reader->readSfixed64();
+                    break;
+                case GPBType::SINT32:
+                    $r[$number][] = $this->reader->readSint32();
+                    break;
+                case GPBType::SINT64:
+                    $r[$number][] = $this->reader->readSint64();
+                    break;
+                default:
+                    user_error("Unsupported type.");
+                    return false;
+            }
+        }
+        return $r;
+    }
+
 }
