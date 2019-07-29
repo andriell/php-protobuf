@@ -48,6 +48,7 @@ class ProtocolBuffers
      */
     public function parse($map = array())
     {
+        $map = is_array($map) ? $map : array();
         $r = array();
         while ($bite = $this->reader->readVarint32()) {
             $number = self::getTagFieldNumber($bite);
@@ -61,18 +62,15 @@ class ProtocolBuffers
                 $r[$number][] = $this->reader->readLittleEndian64();
             } elseif ($tag == self::LENGTH_DELIMITED) {
                 $l = $this->reader->readVarint32();
-                $r[$number][] = $this->reader->readRaw($l);
-            } else {
-                echo 'Unexpected wire type ' . $tag . ".\n";
-                //throw new \Exception('Unexpected wire type ' . $tag . '.');
-            }
-        }
-        foreach ($map as $k1 => $v1) {
-            if (isset($r[$k1])) {
-                foreach ($r[$k1] as $k2 => $v2) {
-                    $pb = new ProtocolBuffers(new StringReader($r[$k1][$k2]));
-                    $r[$k1][$k2] = $pb->parse($v1);
+                $val = $this->reader->readRaw($l);
+                if (isset($map[$number])) {
+                    $pb = new ProtocolBuffers(new StringReader($val));
+                    $val = $pb->parse($map[$number]);
                 }
+                $r[$number][] = $val;
+            } else {
+                //echo 'Unexpected wire type ' . $tag . ".\n";
+                throw new \Exception('Unexpected wire type ' . $tag . '.');
             }
         }
         return $r;
