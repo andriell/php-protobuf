@@ -1,0 +1,164 @@
+<?php
+
+namespace Protobuf;
+
+abstract class AbstractReader implements ReaderInterface
+{
+    const MAX_VAR_INT_BYTES = 10;
+
+    public abstract function read();
+
+    public abstract function readRaw($l);
+
+    public abstract function getLength();
+
+    public abstract function getPosition();
+
+    public static function combineInt32ToInt64($high, $low)
+    {
+        $isNeg = $high < 0;
+        if ($isNeg) {
+            $high = ~$high;
+            $low = ~$low;
+            $low++;
+            if (!$low) {
+                $high = (int)($high + 1);
+            }
+        }
+        $result = bcadd(bcmul($high, 4294967296), $low);
+        if ($low < 0) {
+            $result = bcadd($result, 4294967296);
+        }
+        if ($isNeg) {
+            $result = bcsub(0, $result);
+        }
+        return $result;
+    }
+
+    /**
+     * Read next LittleEndian32 data
+     * @return string
+     */
+    public function readLittleEndian32()
+    {
+        $data = $this->readRaw(4);
+        if ($data === false) {
+            return false;
+        }
+        $var = unpack('V', $data);
+        return $var[1];
+    }
+
+    /**
+     * Read next LittleEndian64 data
+     * @return string
+     */
+    public function readLittleEndian64()
+    {
+        $data = $this->readRaw(4);
+        if ($data === false) {
+            return false;
+        }
+        $low = unpack('V', $data);
+        $low = $low[1];
+        $data = $this->readRaw(4);
+        if ($data === false) {
+            return false;
+        }
+        $high = unpack('V', $data);
+        $high = $high[1];
+        if (PHP_INT_SIZE == 4) {
+            return self::combineInt32ToInt64($high, $low);
+        }
+        return ($high << 32) | $low;
+    }
+
+
+    /**
+     * Read next Varint32 data
+     * @return int
+     */
+    public function readVarint32()
+    {
+        $var = $this->readVarint64();
+
+        if ($var === false) {
+            return false;
+        }
+
+        if (PHP_INT_SIZE == 4) {
+            $var = bcmod($var, 4294967296);
+        } else {
+            $var &= 0xFFFFFFFF;
+        }
+
+        // Convert large uint32 to int32.
+        if ($var > 0x7FFFFFFF) {
+            if (PHP_INT_SIZE === 8) {
+                $var = $var | (0xFFFFFFFF << 32);
+            } else {
+                $var = bcsub($var, 4294967296);
+            }
+        }
+        return intval($var);
+    }
+
+    /**
+     * Read next Varint64 data
+     * @return int
+     */
+    public function readVarint64()
+    {
+        $count = 0;
+
+        if (PHP_INT_SIZE == 4) {
+            $high = 0;
+            $low = 0;
+            do {
+                if ($count === self::MAX_VAR_INT_BYTES) {
+                    return false;
+                }
+                $b = $this->read();
+                if ($b === false) {
+                    return false;
+                }
+                $bits = 7 * $count;
+                if ($bits >= 32) {
+                    $high |= (($b & 0x7F) << ($bits - 32));
+                } else if ($bits > 25) {
+                    // $bits is 28 in this case.
+                    $low |= (($b & 0x7F) << 28);
+                    $high = ($b & 0x7F) >> 4;
+                } else {
+                    $low |= (($b & 0x7F) << $bits);
+                }
+
+                $count += 1;
+            } while ($b & 0x80);
+
+            $var = self::combineInt32ToInt64($high, $low);
+            if (bccomp($var, 0) < 0) {
+                $var = bcadd($var, "18446744073709551616");
+            }
+        } else {
+            $var = 0;
+            $shift = 0;
+
+            do {
+                if ($count === self::MAX_VAR_INT_BYTES) {
+                    return false;
+                }
+                $byte = $this->read();
+                if ($byte === false) {
+                    return false;
+                }
+                $var |= ($byte & 0x7f) << $shift;
+                $shift += 7;
+                $count += 1;
+            } while ($byte > 0x7f);
+
+        }
+
+        return $var;
+    }
+}
