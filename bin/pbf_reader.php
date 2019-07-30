@@ -1,6 +1,7 @@
 <?php
 
 
+use Protobuf\Pbf;
 use Protobuf\ProtocolBuffers;
 use Protobuf\StringReader;
 
@@ -67,3 +68,5 @@ while (!feof($handle)) {
         echo 'Error: undefined BlobHeader type ' . $blobHeader['type'] . "\n";
     }
 }
+
+echo 'Memory peak usage: ' . Pbf::formatBytes(memory_get_peak_usage()) . "\n";

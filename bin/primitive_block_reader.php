@@ -1,6 +1,7 @@
 <?php
 
 use Protobuf\FileReader;
+use Protobuf\Pbf;
 use Protobuf\ProtocolBuffers;
 
 include_once __DIR__ . '/../vendor/autoload.php';
@@ -30,3 +31,5 @@ $p = new ProtocolBuffers($reader, $messages);
 $r = $p->parse('PrimitiveBlock');
 
 file_put_contents($fileBin . '.json', json_encode($r));
+
+echo 'Memory peak usage: ' . Pbf::formatBytes(memory_get_peak_usage()) . "\n";
