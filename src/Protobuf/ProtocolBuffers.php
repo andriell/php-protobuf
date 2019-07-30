@@ -41,16 +41,16 @@ class ProtocolBuffers
     }
 
     /**
-     * @param string $message
+     * @param string $messageType
      * @param int $limit
      * @return array
      * @throws \Exception
      */
-    public function parse($message, $limit = 0)
+    public function parse($messageType, $limit = 0)
     {
         $limit = empty($limit) ? $this->reader->getLength() : $limit;
         $r = array();
-        $message = isset($this->messages[$message]) ? $this->messages[$message] : array();
+        $message = isset($this->messages[$messageType]) ? $this->messages[$messageType] : array();
         while ($this->reader->getPosition() < $limit) {
             $bite = $this->reader->readVarint32();
             $tag = self::getTagWireType($bite);
@@ -69,12 +69,12 @@ class ProtocolBuffers
             } elseif ($tag == self::LENGTH_DELIMITED) {
                 $l = $this->reader->readVarint32();
                 if (isset($field['message'])) {
-                    if (isset($field['packed']) && $field['packed']) {
-                        $type = $field['type'];
-                        $val = $this->parsePacked($type, $this->reader->getPosition() + $l);
-                    } else {
-                        $val = $this->parse($field['message'], $this->reader->getPosition() + $l);
+                    $val = $this->parse($field['message'], $this->reader->getPosition() + $l);
+                } elseif (isset($field['packed']) && $field['packed']) {
+                    if (!isset($field['type'])) {
+                        throw new \Exception('Unexpected packed type ' . $messageType . ':' . $name . '.');
                     }
+                    $val = $this->parsePacked($field['type'], $this->reader->getPosition() + $l);
                 } else {
                     $val = $this->reader->readRaw($l);
                 }
@@ -154,7 +154,5 @@ class ProtocolBuffers
             user_error("Unsupported type.");
         }
         return $r;
-
     }
-
 }
