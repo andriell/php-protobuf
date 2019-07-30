@@ -33,7 +33,7 @@ if ($errors) {
 $GLOBALS['start_time'] = time();
 $reader = new FileReader($fileBin);
 $reader->setReadListener(array('Protobuf\AbstractReader', 'echoListener'));
-$reader->setReadListenerStep(1024 * 1024);
+$reader->setReadListenerStep(300*1024);
 $p = new ProtocolBuffers($reader, $messages);
 $r = $p->parse('PrimitiveBlock');
 

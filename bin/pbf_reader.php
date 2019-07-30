@@ -62,7 +62,7 @@ while (!feof($handle)) {
         file_put_contents($saveDir . '/HeaderBlock' . $headerBlockCount . '.bin', $data);
         $headerBlockPb = new ProtocolBuffers(new StringReader($data), $messages);
         $headerBlock = $headerBlockPb->parse('HeaderBlock');
-        file_put_contents($saveDir . '/HeaderBlock' . $headerBlockCount . '.json', json_encode($headerBlock));
+        file_put_contents($saveDir . '/HeaderBlock' . $headerBlockCount . '.bin.json', json_encode($headerBlock));
         echo 'Write HeaderBlock' . $headerBlockCount . ' ' . Pbf::formatBytes(strlen($data)) . "\n";
     } elseif ($blobHeader['type'] == 'OSMData') {
         $primitiveBlockCount++;
