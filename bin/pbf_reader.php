@@ -59,11 +59,11 @@ while (!feof($handle)) {
         $headerBlockPb = new ProtocolBuffers(new StringReader($data), $messages);
         $headerBlock = $headerBlockPb->parse('HeaderBlock');
         file_put_contents($saveDir . '/HeaderBlock' . $headerBlockCount . '.json', json_encode($headerBlock));
-        echo 'Write HeaderBlock' . $headerBlockCount . ' ' . strlen($data) . "\n";
+        echo 'Write HeaderBlock' . $headerBlockCount . ' ' . Pbf::formatBytes(strlen($data)) . "\n";
     } elseif ($blobHeader['type'] == 'OSMData') {
         $primitiveBlockCount++;
         file_put_contents($saveDir . '/PrimitiveBlock' . $primitiveBlockCount . '.bin', $data);
-        echo 'Write PrimitiveBlock' . $primitiveBlockCount . ' ' . strlen($data) . "\n";
+        echo 'Write PrimitiveBlock' . $primitiveBlockCount . ' ' . Pbf::formatBytes(strlen($data)) . "\n";
     } else {
         echo 'Error: undefined BlobHeader type ' . $blobHeader['type'] . "\n";
     }

@@ -32,7 +32,7 @@ abstract class AbstractReader implements ReaderInterface
         $a4 = Pbf::formatBytes(memory_get_usage());
         $a5 = Pbf::formatTime($time);
         $a6 = Pbf::formatTime($timeLeft);
-        return sprintf("Progress: %+6s%%    [ %+10s / %+10s ]    Memory usage: %+10s    Time: %+8s    Time left: %+8s\n", $a1, $a2, $a3, $a4, $a5, $a6);
+        return sprintf("Progress: %+6s%%    [ %+10s / %+10s ]    Memory usage: %+10s    Time: %+9s    Time left: %+9s\n", $a1, $a2, $a3, $a4, $a5, $a6);
     }
 
     public static function echoListener($position, $length)
