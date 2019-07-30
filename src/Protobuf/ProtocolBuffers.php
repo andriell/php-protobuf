@@ -16,13 +16,14 @@ class ProtocolBuffers
     const FIXED32 = 5;
 
 
-    /** @var StringReader */
+    /** @var ReaderInterface */
     protected $reader = null;
     protected $messages = array();
+    protected $errors = array();
 
     /**
      * ProtocolBuffers constructor.
-     * @param StringReader $reader
+     * @param ReaderInterface $reader
      * @param array $messages
      */
     public function __construct($reader, $messages)
@@ -87,7 +88,6 @@ class ProtocolBuffers
      * @param string $messageClass
      * @param int $limit
      * @return array
-     * @throws \Exception
      */
     public function parse($messageClass, $limit = 0)
     {
@@ -100,7 +100,7 @@ class ProtocolBuffers
 
             $number = self::getTagFieldNumber($bite);
             $field = isset($message[$number]) ? $message[$number] : array();
-            $name = isset($field['name']) ? $message[$number]['name'] : $number;
+            $name = isset($field[Pbf::NAME]) ? $message[$number][Pbf::NAME] : $number;
 
             //echo dechex($bite) . ' ' . $number . ' - ' . $tag . "\n";
             if ($tag == self::VAR_INT) {
@@ -111,21 +111,21 @@ class ProtocolBuffers
                 $val = $this->reader->readLittleEndian64();
             } elseif ($tag == self::LENGTH_DELIMITED) {
                 $l = $this->reader->readVarint32();
-                if (isset($field['message'])) {
-                    $val = $this->parse($field['message'], $this->reader->getPosition() + $l);
-                } elseif (isset($field['packed']) && $field['packed']) {
-                    if (!isset($field['type'])) {
-                        throw new \Exception('Unexpected packed type ' . $messageClass . ':' . $name . '.');
+                if (isset($field[Pbf::MESSAGE])) {
+                    $val = $this->parse($field[Pbf::MESSAGE], $this->reader->getPosition() + $l);
+                } elseif (isset($field[Pbf::PACKED]) && $field[Pbf::PACKED]) {
+                    if (!isset($field[Pbf::TYPE])) {
+                        $this->errors[] = 'Unexpected packed type ' . $messageClass . '.' . $name;
                     }
-                    $val = $this->parsePacked($field['type'], $this->reader->getPosition() + $l);
+                    $val = $this->parsePacked($field[Pbf::TYPE], $this->reader->getPosition() + $l);
+                    $field[Pbf::REPEATED] = false;
                 } else {
                     $val = $this->reader->readRaw($l);
                 }
             } else {
-                //echo 'Unexpected wire type ' . $tag . ".\n";
-                throw new \Exception('Unexpected wire type ' . $tag . '.');
+                $this->errors[] = 'Unexpected wire type ' . $tag;
             }
-            if (isset($field['repeated']) && empty($field['repeated'])) {
+            if (isset($field[Pbf::REPEATED]) && empty($field[Pbf::REPEATED])) {
                 $r[$name] = $val;
             } else {
                 $r[$name][] = $val;
@@ -194,8 +194,16 @@ class ProtocolBuffers
                 $r[] = $this->reader->readSint64();
             }
         } else {
-            user_error("Unsupported type.");
+            $this->errors[] = 'Unsupported type ' . $type;
         }
         return $r;
+    }
+
+    /**
+     * @return array
+     */
+    public function getErrors()
+    {
+        return $this->errors;
     }
 }
