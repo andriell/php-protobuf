@@ -8,7 +8,7 @@ abstract class AbstractReader implements ReaderInterface
 
     /** @var callable */
     protected $readListener = null;
-    protected $readListenerNext = 1048576;
+    protected $readListenerNextCall = 0;
     protected $readListenerStep = 1048576;
 
     public abstract function read();
@@ -51,13 +51,29 @@ abstract class AbstractReader implements ReaderInterface
         $this->readListenerStep = $readListenerStep;
     }
 
-    protected function fireReadListener()
+    /**
+     * @return int
+     */
+    public function getReadListenerNextCall()
     {
-        if ($this->readListenerNext < $this->getPosition()) {
+        return $this->readListenerNextCall;
+    }
+
+    /**
+     * @param int $readListenerNextCall
+     */
+    public function setReadListenerNextCall($readListenerNextCall)
+    {
+        $this->readListenerNextCall = $readListenerNextCall;
+    }
+
+    protected function updateReadListener()
+    {
+        if ($this->readListenerNextCall < $this->getPosition()) {
             if (is_callable($this->readListener)) {
                 call_user_func($this->readListener, $this->getPosition(), $this->getLength());
             }
-            $this->readListenerNext = $this->getPosition() + $this->readListenerStep;
+            $this->readListenerNextCall = min($this->getPosition() + $this->readListenerStep, $this->getLength() - 1);
         }
     }
 

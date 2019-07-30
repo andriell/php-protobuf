@@ -35,7 +35,7 @@ class FileReader extends  AbstractReader
             $this->close();
             return false;
         }
-        $this->fireReadListener();
+        $this->updateReadListener();
         return ord(mb_substr($this->buffer, $this->position++, 1, '8bit'));
     }
 
@@ -48,7 +48,7 @@ class FileReader extends  AbstractReader
     {
         $r = mb_substr($this->buffer, $this->position, $l, '8bit');
         $this->position += $l;
-        $this->fireReadListener();
+        $this->updateReadListener();
         return $r;
     }
 

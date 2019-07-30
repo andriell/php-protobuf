@@ -28,7 +28,7 @@ class StringReader extends  AbstractReader
         if ($this->position >= $this->length) {
             return false;
         }
-        $this->fireReadListener();
+        $this->updateReadListener();
         return ord(mb_substr($this->data, $this->position++, 1, '8bit'));
     }
 
@@ -41,7 +41,7 @@ class StringReader extends  AbstractReader
     {
         $r = mb_substr($this->data, $this->position, $l, '8bit');
         $this->position += $l;
-        $this->fireReadListener();
+        $this->updateReadListener();
         return $r;
     }
 
