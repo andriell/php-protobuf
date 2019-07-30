@@ -15,19 +15,18 @@ class ProtocolBuffers
 
 
     /** @var StringReader */
-    private $reader = null;
-    private $tagMask = '';
-    private $typeMask = '';
+    protected $reader = null;
+    protected $messages = array();
 
     /**
      * ProtocolBuffers constructor.
      * @param StringReader $reader
+     * @param array $messages
      */
-    public function __construct($reader)
+    public function __construct($reader, $messages)
     {
         $this->reader = $reader;
-        $this->tagMask = hex2bin('F8');
-        $this->typeMask = hex2bin('07');
+        $this->messages = $messages;
     }
 
     public static function getTagFieldNumber($tag)
@@ -42,117 +41,120 @@ class ProtocolBuffers
     }
 
     /**
-     * @param array $map
+     * @param string $message
+     * @param int $limit
      * @return array
      * @throws \Exception
      */
-    public function parse($map = array())
+    public function parse($message, $limit = 0)
     {
-        $map = is_array($map) ? $map : array();
+        $limit = empty($limit) ? $this->reader->getLength() : $limit;
         $r = array();
-        while ($bite = $this->reader->readVarint32()) {
-            $number = self::getTagFieldNumber($bite);
+        $message = isset($this->messages[$message]) ? $this->messages[$message] : array();
+        while ($this->reader->getPosition() < $limit) {
+            $bite = $this->reader->readVarint32();
             $tag = self::getTagWireType($bite);
+
+            $number = self::getTagFieldNumber($bite);
+            $field = isset($message[$number]) ? $message[$number] : array();
+            $name = isset($field['name']) ? $message[$number]['name'] : $number;
+
             //echo dechex($bite) . ' ' . $number . ' - ' . $tag . "\n";
             if ($tag == self::VAR_INT) {
-                $r[$number][] = $this->reader->readVarint64();
+                $val = $this->reader->readVarint64();
             } elseif ($tag == self::FIXED32) {
-                $r[$number][] = $this->reader->readLittleEndian32();
+                $val = $this->reader->readLittleEndian32();
             } elseif ($tag == self::FIXED64) {
-                $r[$number][] = $this->reader->readLittleEndian64();
+                $val = $this->reader->readLittleEndian64();
             } elseif ($tag == self::LENGTH_DELIMITED) {
                 $l = $this->reader->readVarint32();
-                $val = $this->reader->readRaw($l);
-                if (isset($map[$number])) {
-                    $pb = new ProtocolBuffers(new StringReader($val));
-                    $val = $pb->parse($map[$number]);
+                if (isset($field['message'])) {
+                    if (isset($field['packed']) && $field['packed']) {
+                        $type = $field['type'];
+                        $val = $this->parsePacked($type, $this->reader->getPosition() + $l);
+                    } else {
+                        $val = $this->parse($field['message'], $this->reader->getPosition() + $l);
+                    }
+                } else {
+                    $val = $this->reader->readRaw($l);
                 }
-                $r[$number][] = $val;
             } else {
                 //echo 'Unexpected wire type ' . $tag . ".\n";
                 throw new \Exception('Unexpected wire type ' . $tag . '.');
+            }
+            if (isset($field['repeated']) && empty($field['repeated'])) {
+                $r[$name] = $val;
+            } else {
+                $r[$name][] = $val;
             }
         }
         return $r;
     }
 
     /**
-     * @param array $map
+     * @param $type
+     * @param $limit
      * @return array
-     * @throws \Exception
      */
-    public function parsePacked($map = array())
+    public function parsePacked($type, $limit)
     {
-        $map = is_array($map) ? $map : array();
         $r = array();
-        while ($bite = $this->reader->readVarint32()) {
-            $number = self::getTagFieldNumber($bite);
-            $tag = self::getTagWireType($bite);
-            switch ($tag) {
-                case GPBType::DOUBLE:
-                    $r[$number][] = $this->reader->readDouble();
-                    break;
-                case GPBType::FLOAT:
-                    $r[$number][] = $this->reader->readFloat();
-
-                    break;
-                case GPBType::INT64:
-                    $r[$number][] = $this->reader->readInt64();
-                    break;
-                case GPBType::UINT64:
-                    $r[$number][] = $this->reader->readInt64();
-                    break;
-                case GPBType::INT32:
-                    $r[$number][] = $this->reader->readVarint32();
-                    break;
-                case GPBType::FIXED64:
-                    $r[$number][] = $this->reader->readLittleEndian64();
-                    break;
-                case GPBType::FIXED32:
-                    $r[$number][] = $this->reader->readLittleEndian32();
-                    break;
-                case GPBType::BOOL:
-                    $r[$number][] = $this->reader->readBool();
-                    break;
-                case GPBType::STRING:
-                    $l = $this->reader->readVarint32();
-                    $r[$number][] = $this->reader->readRaw($l);
-                    break;
-                case GPBType::GROUP:
-                    trigger_error("Not implemented.", E_ERROR);
-                    break;
-                case GPBType::MESSAGE:
-                    $l = $this->reader->readVarint32();
-                    $r[$number][] = $this->reader->readRaw($l);
-                    break;
-                case GPBType::BYTES:
-                    $l = $this->reader->readVarint32();
-                    $r[$number][] = $this->reader->readRaw($l);
-                    break;
-                case GPBType::UINT32:
-                    $r[$number][] = $this->reader->readVarint32();
-                    break;
-                case GPBType::ENUM:
-                    $r[$number][] = $this->reader->readVarint32();
-                    break;
-                case GPBType::SFIXED32:
-                    $r[$number][] = $this->reader->readSfixed32();
-                    break;
-                case GPBType::SFIXED64:
-                    $r[$number][] = $this->reader->readSfixed64();
-                    break;
-                case GPBType::SINT32:
-                    $r[$number][] = $this->reader->readSint32();
-                    break;
-                case GPBType::SINT64:
-                    $r[$number][] = $this->reader->readSint64();
-                    break;
-                default:
-                    user_error("Unsupported type.");
-                    return false;
+        if ($type == GPBType::DOUBLE) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readDouble();
             }
+        } elseif ($type == GPBType::FLOAT) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readFloat();
+            }
+        } elseif ($type == GPBType::INT64 || $type == GPBType::UINT64) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readInt64();
+            }
+        } elseif ($type == GPBType::INT32) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readVarint32();
+            }
+        } elseif ($type == GPBType::FIXED64) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readLittleEndian64();
+            }
+        } elseif ($type == GPBType::FIXED32) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readLittleEndian32();
+            }
+        } elseif ($type == GPBType::STRING || $type == GPBType::MESSAGE || $type == GPBType::BYTES) {
+            while ($this->reader->getPosition() < $limit) {
+                $l = $this->reader->readVarint32();
+                $r[] = $this->reader->readRaw($l);
+            }
+        } elseif ($type == GPBType::GROUP) {
+            trigger_error("Not implemented.", E_ERROR);
+        } elseif ($type == GPBType::UINT32 || $type == GPBType::ENUM) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readVarint32();
+            }
+        } elseif ($type == GPBType::SFIXED32) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readSfixed32();
+            }
+        } elseif ($type == GPBType::SFIXED64) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readSfixed64();
+            }
+        } elseif ($type == GPBType::SINT32) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readSint32();
+            }
+        } elseif ($type == GPBType::SINT64) {
+            while ($this->reader->getPosition() < $limit) {
+                $r[] = $this->reader->readSint64();
+            }
+        } else {
+            user_error("Unsupported type.");
         }
         return $r;
+
     }
 
 }
