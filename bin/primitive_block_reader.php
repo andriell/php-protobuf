@@ -4,6 +4,11 @@ use Protobuf\FileReader;
 use Protobuf\Pbf;
 use Protobuf\ProtocolBuffers;
 
+if (PHP_INT_SIZE != 8) {
+    echo 'This is only for x64 systems';
+    exit(1);
+}
+
 include_once __DIR__ . '/../vendor/autoload.php';
 
 $messages = require __DIR__ . '/../src/osm_messages.php';
