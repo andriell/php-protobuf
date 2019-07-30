@@ -19,6 +19,27 @@ abstract class AbstractReader implements ReaderInterface
 
     public abstract function getPosition();
 
+    public static function stringListener($position, $length)
+    {
+        $time = time() - $GLOBALS['start_time'];
+        $timeLeft = 0;
+        if ($position >= 1024 * 1024) {
+            $timeLeft = $time * $length / $position - $time;
+        }
+        $a1 = round($position / $length * 100, 2);
+        $a2 = Pbf::formatBytes($position);
+        $a3 = Pbf::formatBytes($length);
+        $a4 = Pbf::formatBytes(memory_get_usage());
+        $a5 = Pbf::formatTime($time);
+        $a6 = Pbf::formatTime($timeLeft);
+        return sprintf("Progress: %+6s%%    [ %+10s / %+10s ]    Memory usage: %+10s    Time: %+8s    Time left: %+8s\n", $a1, $a2, $a3, $a4, $a5, $a6);
+    }
+
+    public static function echoListener($position, $length)
+    {
+        echo self::stringListener($position, $length);
+    }
+
     /**
      * @return callable
      */

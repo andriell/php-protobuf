@@ -25,10 +25,9 @@ if ($errors) {
     exit(1);
 }
 
+$GLOBALS['start_time'] = time();
 $reader = new FileReader($fileBin);
-$reader->setReadListener(function ($position, $length) {
-    echo 'Progress: ' . round($position / $length * 100, 2) . '% [ ' . Pbf::formatBytes($position) . ' / ' . Pbf::formatBytes($length) . ' ] Memory usage: ' . Pbf::formatBytes(memory_get_usage()) . "\n";
-});
+$reader->setReadListener(array('Protobuf\AbstractReader', 'echoListener'));
 $reader->setReadListenerStep(1024 * 1024);
 $p = new ProtocolBuffers($reader, $messages);
 $r = $p->parse('PrimitiveBlock');
