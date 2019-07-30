@@ -2,6 +2,8 @@
 
 namespace Protobuf;
 
+use mysql_xdevapi\Exception;
+
 class ProtocolBuffers
 {
     const TAG_TYPE_BITS = 3;
@@ -29,6 +31,47 @@ class ProtocolBuffers
         $this->messages = $messages;
     }
 
+    /**
+     * @param $messages
+     * @return array
+     */
+    public static function validateMessages($messages)
+    {
+        if (!is_array($messages)) {
+            return array('Is not array');
+        }
+        $errors = array();
+        foreach ($messages as $messageClass => $message) {
+            if (!is_array($message)) {
+                $errors[] = $messageClass . ' is not array';
+                continue;
+            }
+            $fieldName = array();
+            foreach ($message as $i => $field) {
+                if (!(is_int($i) && $i > 0)) {
+                    $errors[] = $messageClass . '.' . $i . ' incorrect index';
+                }
+                if (array_key_exists(Pbf::NAME, $field)) {
+                    $name = $field[Pbf::NAME];
+                    if (array_key_exists($name, $fieldName)) {
+                        $errors[] = $messageClass . '.' . $i . ' duplicate name with field ' . $fieldName[$name];
+                    }
+                    $fieldName[$name] = $i;
+                }
+                if (array_key_exists(Pbf::MESSAGE, $field)) {
+                    $messageMessage = $field[Pbf::MESSAGE];
+                    if (array_key_exists(Pbf::PACKED, $field) && $field[Pbf::PACKED]) {
+                        $errors[] = $messageClass . '.' . $i . ' message type can not be packed';
+                    }
+                    if (!array_key_exists($messageMessage, $messages)) {
+                        $errors[] = $messageClass . '.' . $i . ' undefined message ' . $messageMessage;
+                    }
+                }
+            }
+        }
+        return $errors;
+    }
+
     public static function getTagFieldNumber($tag)
     {
         return ($tag >> self::TAG_TYPE_BITS) &
@@ -41,16 +84,16 @@ class ProtocolBuffers
     }
 
     /**
-     * @param string $messageType
+     * @param string $messageClass
      * @param int $limit
      * @return array
      * @throws \Exception
      */
-    public function parse($messageType, $limit = 0)
+    public function parse($messageClass, $limit = 0)
     {
         $limit = empty($limit) ? $this->reader->getLength() : $limit;
         $r = array();
-        $message = isset($this->messages[$messageType]) ? $this->messages[$messageType] : array();
+        $message = isset($this->messages[$messageClass]) ? $this->messages[$messageClass] : array();
         while ($this->reader->getPosition() < $limit) {
             $bite = $this->reader->readVarint32();
             $tag = self::getTagWireType($bite);
@@ -72,7 +115,7 @@ class ProtocolBuffers
                     $val = $this->parse($field['message'], $this->reader->getPosition() + $l);
                 } elseif (isset($field['packed']) && $field['packed']) {
                     if (!isset($field['type'])) {
-                        throw new \Exception('Unexpected packed type ' . $messageType . ':' . $name . '.');
+                        throw new \Exception('Unexpected packed type ' . $messageClass . ':' . $name . '.');
                     }
                     $val = $this->parsePacked($field['type'], $this->reader->getPosition() + $l);
                 } else {
