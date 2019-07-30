@@ -4,9 +4,9 @@ namespace Protobuf;
 
 class StringReader extends  AbstractReader
 {
-    private $data = '';
-    private $length = 0;
-    private $position = 0;
+    protected $data = '';
+    protected $length = 0;
+    protected $position = 0;
 
     /**
      * StringReader constructor.
@@ -28,6 +28,7 @@ class StringReader extends  AbstractReader
         if ($this->position >= $this->length) {
             return false;
         }
+        $this->fireReadListener();
         return ord(mb_substr($this->data, $this->position++, 1, '8bit'));
     }
 
@@ -40,6 +41,7 @@ class StringReader extends  AbstractReader
     {
         $r = mb_substr($this->data, $this->position, $l, '8bit');
         $this->position += $l;
+        $this->fireReadListener();
         return $r;
     }
 

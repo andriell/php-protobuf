@@ -6,6 +6,11 @@ abstract class AbstractReader implements ReaderInterface
 {
     const MAX_VAR_INT_BYTES = 10;
 
+    /** @var callable */
+    protected $readListener = null;
+    protected $readListenerNext = 1048576;
+    protected $readListenerStep = 1048576;
+
     public abstract function read();
 
     public abstract function readRaw($l);
@@ -13,6 +18,48 @@ abstract class AbstractReader implements ReaderInterface
     public abstract function getLength();
 
     public abstract function getPosition();
+
+    /**
+     * @return callable
+     */
+    public function getReadListener()
+    {
+        return $this->readListener;
+    }
+
+    /**
+     * @param callable $readListener
+     */
+    public function setReadListener($readListener)
+    {
+        $this->readListener = $readListener;
+    }
+
+    /**
+     * @return int
+     */
+    public function getReadListenerStep()
+    {
+        return $this->readListenerStep;
+    }
+
+    /**
+     * @param int $readListenerStep
+     */
+    public function setReadListenerStep($readListenerStep)
+    {
+        $this->readListenerStep = $readListenerStep;
+    }
+
+    protected function fireReadListener()
+    {
+        if ($this->readListenerNext < $this->getPosition()) {
+            if (is_callable($this->readListener)) {
+                call_user_func($this->readListener, $this->getPosition(), $this->getLength());
+            }
+            $this->readListenerNext = $this->getPosition() + $this->readListenerStep;
+        }
+    }
 
     public static function combineInt32ToInt64($high, $low)
     {

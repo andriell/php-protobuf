@@ -26,10 +26,16 @@ if ($errors) {
 }
 
 $reader = new FileReader($fileBin);
-
+$reader->setReadListener(function ($position, $length) {
+    echo 'Progress: ' . round($position / $length * 100, 2) . '% [ ' . Pbf::formatBytes($position) . ' / ' . Pbf::formatBytes($length) . ' ] Memory usage: ' . Pbf::formatBytes(memory_get_usage()) . "\n";
+});
+$reader->setReadListenerStep(1024 * 1024);
 $p = new ProtocolBuffers($reader, $messages);
 $r = $p->parse('PrimitiveBlock');
 
+echo 'Memory peak usage: ' . Pbf::formatBytes(memory_get_peak_usage()) . "\n";
+echo 'Start saving' . "\n";
 file_put_contents($fileBin . '.json', json_encode($r));
 
+echo 'End' . "\n";
 echo 'Memory peak usage: ' . Pbf::formatBytes(memory_get_peak_usage()) . "\n";

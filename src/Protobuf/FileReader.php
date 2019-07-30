@@ -5,11 +5,11 @@ namespace Protobuf;
 class FileReader extends  AbstractReader
 {
     /** @var resource  */
-    private $handle = null;
-    private $buffer = '';
-    private $bufferSize = 0;
-    private $length = 0;
-    private $position = 0;
+    protected $handle = null;
+    protected $buffer = '';
+    protected $bufferSize = 0;
+    protected $length = 0;
+    protected $position = 0;
 
     /**
      * FileReader constructor.
@@ -35,6 +35,7 @@ class FileReader extends  AbstractReader
             $this->close();
             return false;
         }
+        $this->fireReadListener();
         return ord(mb_substr($this->buffer, $this->position++, 1, '8bit'));
     }
 
@@ -47,6 +48,7 @@ class FileReader extends  AbstractReader
     {
         $r = mb_substr($this->buffer, $this->position, $l, '8bit');
         $this->position += $l;
+        $this->fireReadListener();
         return $r;
     }
 
