@@ -62,13 +62,13 @@ while (!feof($handle)) {
     }
     if ($blobHeader['type'] == 'OSMHeader') {
         $headerBlockCount++;
-        file_put_contents($saveDir . '/HeaderBlock' . $headerBlockCount . '.bin', $data);
+        file_put_contents($saveDir . sprintf("/HeaderBlock%06d.bin", $headerBlockCount), $data);
         $headerBlockPb = new ProtocolBuffers(new StringReader($data), $messages);
         $headerBlock = $headerBlockPb->parse('HeaderBlock');
-        file_put_contents($saveDir . '/HeaderBlock' . $headerBlockCount . '.bin.json', json_encode($headerBlock));
+        file_put_contents($saveDir . sprintf("/HeaderBlock%06d.bin.json", $headerBlockCount), json_encode($headerBlock));
     } elseif ($blobHeader['type'] == 'OSMData') {
         $primitiveBlockCount++;
-        file_put_contents($saveDir . '/PrimitiveBlock' . $primitiveBlockCount . '.bin', $data);
+        file_put_contents($saveDir . sprintf("/PrimitiveBlock%06d.bin", $primitiveBlockCount), $data);
     } else {
         echo 'Error: undefined BlobHeader type ' . $blobHeader['type'] . "\n";
     }
