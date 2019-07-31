@@ -29,26 +29,29 @@ if (!is_dir($saveDir)) {
 }
 
 $handle = fopen($filePbf, 'r');
+$fileSize = filesize($filePbf);
 
 $headerBlockCount = 0;
 $primitiveBlockCount = 0;
+$position = 0;
+$GLOBALS['start_time'] = time();
 
 while (!feof($handle)) {
     $lengthBin = fread($handle, 4);
+    $position += 4;
 
     $lengthInt = hexdec(bin2hex($lengthBin));
     if ($lengthInt == 0) {
-        echo "End\n";
         break;
     }
 
     $blobHeaderBin = fread($handle, $lengthInt);
+    $position += $lengthInt;
     $blobHeaderPb = new ProtocolBuffers(new StringReader($blobHeaderBin), $messages);
     $blobHeader = $blobHeaderPb->parse('BlobHeader');
 
-    echo 'BlobHeader ' . $blobHeader['type'] . "\n";
-
     $blobBin = fread($handle, $blobHeader['datasize']);
+    $position += $blobHeader['datasize'];
     $blobPb = new ProtocolBuffers(new StringReader($blobBin), $messages);
     $blob = $blobPb->parse('Blob');
 
@@ -63,14 +66,14 @@ while (!feof($handle)) {
         $headerBlockPb = new ProtocolBuffers(new StringReader($data), $messages);
         $headerBlock = $headerBlockPb->parse('HeaderBlock');
         file_put_contents($saveDir . '/HeaderBlock' . $headerBlockCount . '.bin.json', json_encode($headerBlock));
-        echo 'Write HeaderBlock' . $headerBlockCount . ' ' . Pbf::formatBytes(strlen($data)) . "\n";
     } elseif ($blobHeader['type'] == 'OSMData') {
         $primitiveBlockCount++;
         file_put_contents($saveDir . '/PrimitiveBlock' . $primitiveBlockCount . '.bin', $data);
-        echo 'Write PrimitiveBlock' . $primitiveBlockCount . ' ' . Pbf::formatBytes(strlen($data)) . "\n";
     } else {
         echo 'Error: undefined BlobHeader type ' . $blobHeader['type'] . "\n";
     }
+    StringReader::echoListener($position, $fileSize);
 }
 
+echo "End\n";
 echo 'Memory peak usage: ' . Pbf::formatBytes(memory_get_peak_usage()) . "\n";
