@@ -73,13 +73,13 @@ while (!feof($handle)) {
         $primitiveBlockReader = new StringReader($data);
         if (strlen($data) > 1024 * 1024) {
             $primitiveBlockReader->setReadListener(array('Protobuf\AbstractReader', 'echoListener'));
-            echo 'Start parse PrimitiveBlock' . "\n";
+            echo 'Start parse PrimitiveBlock ' . $primitiveBlockCount . "\n";
         }
         $primitiveBlockPb = new ProtocolBuffers($primitiveBlockReader, $messages);
         $primitiveBlock = $primitiveBlockPb->parse('PrimitiveBlock');
         file_put_contents($saveDir . '/PrimitiveBlock' . $primitiveBlockCount . '.json', json_encode($primitiveBlock));
         if (strlen($data) > 1024 * 1024) {
-            echo 'End parse PrimitiveBlock' . "\n";
+            echo 'End parse PrimitiveBlock' . $primitiveBlockCount . "\n";
         }
     } else {
         echo 'Error: undefined BlobHeader type ' . $blobHeader['type'] . "\n";
