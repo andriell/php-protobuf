@@ -51,6 +51,7 @@ foreach ($fileList as $file => $size) {
     $reader = new FileReader($GLOBALS['bin_dir'] . '/' . $file);
     $reader->setReadListener(function ($position, $length) {
         $str = json_encode(array(
+            'pid' => getmypid(),
             'position' => $position + $GLOBALS['position'],
             'total_size' => $GLOBALS['total_size'],
             'start_time' => $GLOBALS['start_time'],
