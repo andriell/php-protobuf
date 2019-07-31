@@ -70,9 +70,17 @@ while (!feof($handle)) {
         file_put_contents($saveDir . '/HeaderBlock' . $headerBlockCount . '.json', json_encode($headerBlock));
     } elseif ($blobHeader['type'] == 'OSMData') {
         $primitiveBlockCount++;
-        $primitiveBlockPb = new ProtocolBuffers(new StringReader($data), $messages);
+        $primitiveBlockReader = new StringReader($data);
+        if (strlen($data) > 1024 * 1024) {
+            $primitiveBlockReader->setReadListener(array('Protobuf\AbstractReader', 'echoListener'));
+            echo 'Start parse PrimitiveBlock' . "\n";
+        }
+        $primitiveBlockPb = new ProtocolBuffers($primitiveBlockReader, $messages);
         $primitiveBlock = $primitiveBlockPb->parse('PrimitiveBlock');
         file_put_contents($saveDir . '/PrimitiveBlock' . $primitiveBlockCount . '.json', json_encode($primitiveBlock));
+        if (strlen($data) > 1024 * 1024) {
+            echo 'End parse PrimitiveBlock' . "\n";
+        }
     } else {
         echo 'Error: undefined BlobHeader type ' . $blobHeader['type'] . "\n";
     }
